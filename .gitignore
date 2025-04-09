@@ -1,0 +1,85 @@
+# 操作系统相关
+.DS_Store
+.Thumbs.db
+ehthumbs.db
+Icon\r
+
+# 编辑器相关
+.idea/
+.vscode/
+*.suo
+*.user
+*.sdf
+*.cache
+*.log
+*.tmp
+*.pid
+*.iws
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.VC.db
+*.VC.opendb
+.vs/
+
+# 构建和编译产物
+build/
+dist/
+bin/
+obj/
+out/
+target/
+*.class
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.lib
+*.dylib
+*.war
+*.ear
+
+# 依赖管理相关
+node_modules/
+vendor/
+.bower_components/
+.pnpm/
+.yarn/
+yarn.lock
+package-lock.json
+composer.lock
+Cargo.lock
+
+# 日志和临时文件
+*.log
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+*.cache
+*.tgz
+*.zip
+*.rar
+*.7z
+
+# 数据库相关
+*.sqlite
+*.db
+*.mdf
+*.ldf
+*.sln
+*.suo
+
+# 特定语言和框架相关
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+# Java
+*.iml
+# R
+.Rhistory
+.RData
+.Ruserdata
