@@ -1,8 +1,8 @@
 # 忽略指定的文件夹及其内容
 hnswlib/
-llama.cpp/
-onnxruntime/
 opencv/
-sqlite/
 TNN/
 cppjieba/
+llama.cpp/
+onnxruntime/
+sqlite/
