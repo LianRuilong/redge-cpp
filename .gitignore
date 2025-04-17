@@ -30,6 +30,8 @@ bin/
 obj/
 out/
 target/
+resource/
+model/
 *.class
 *.o
 *.a
