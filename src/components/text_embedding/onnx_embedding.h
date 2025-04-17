@@ -2,7 +2,6 @@
 
 #include "text_embedding.h"
 #include <onnxruntime/onnxruntime_cxx_api.h>
-// #include "/home/lianrl/Work/redge-cpp/build/third_party_install/onnxruntime/include/onnxruntime/onnxruntime_cxx_api.h"
 
 class OnnxRuntimeEmbedding : public TextEmbedding {
 public:
@@ -16,4 +15,5 @@ public:
 private:
     Ort::Env env;
     Ort::Session* session;
+    Tokenizer tokenizer;
 };

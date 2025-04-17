@@ -95,3 +95,5 @@ POST /api/knowledgebase/query
 
 ---
 
+curl https://sh.rustup.rs -sSf | sh
+

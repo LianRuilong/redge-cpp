@@ -6,3 +6,4 @@ cppjieba/
 llama.cpp/
 onnxruntime/
 sqlite/
+tokenizers/

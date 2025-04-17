@@ -8,7 +8,7 @@ int main() {
         return 1;
     }
 
-    if (!embedding->load_model("models/bge-small-zh-v1.5.onnx")) {
+    if (!embedding->load_model("resource/model/multilingual-e5-small/model.onnx")) {
         std::cerr << "Model loading failed!" << std::endl;
         return 1;
     }
