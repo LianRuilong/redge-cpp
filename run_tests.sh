@@ -2,7 +2,7 @@
 
 set -e
 
-INSTALL_DIR=build/install
+INSTALL_DIR=out/install
 BIN_DIR=${INSTALL_DIR}/bin
 LIB_DIR=${INSTALL_DIR}/lib
 

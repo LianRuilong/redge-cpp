@@ -33,7 +33,7 @@ void save_vector_to_txt(const std::vector<float>& vec, const std::string& filena
 }
 
 int main() {
-    auto embedding = EmbeddingFactory::create(InferenceBackend::ONNXRUNTIME);
+    auto embedding = text_embedding::EmbeddingFactory::create(text_embedding::InferenceBackend::ONNXRUNTIME);
     if (!embedding) {
         std::cerr << "Failed to create embedding instance!" << std::endl;
         return 1;

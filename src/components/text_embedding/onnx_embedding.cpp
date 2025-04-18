@@ -10,6 +10,8 @@
 #include <fstream>
 #include <sstream>
 
+namespace {
+
 // 打印模型输入输出的形状 
 // [Model Inputs]:
 // Input 0: input_ids
@@ -33,8 +35,12 @@ void print_model_io_info(Ort::Session& session) {
     }
 }
 
-OnnxRuntimeEmbedding::OnnxRuntimeEmbedding() : env(ORT_LOGGING_LEVEL_WARNING, "TextEmbedding") {
-    session = nullptr;
+} // namespace
+
+namespace text_embedding {
+
+OnnxRuntimeEmbedding::OnnxRuntimeEmbedding() : env_(ORT_LOGGING_LEVEL_WARNING, "TextEmbedding") {
+    session_ = nullptr;
 }
 
 OnnxRuntimeEmbedding::~OnnxRuntimeEmbedding() {
@@ -55,10 +61,10 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
         load_tokenizer_from_json(tokenizer_file);
 
         Ort::SessionOptions session_options;
-        session = new Ort::Session(env, model_file.c_str(), session_options);
+        session_ = new Ort::Session(env_, model_file.c_str(), session_options);
         std::cout << "Model loaded successfully: " << model_file << std::endl;
 
-        print_model_io_info(*session);
+        print_model_io_info(*session_);
 
         return true;
     } catch (const std::exception& e) {
@@ -68,19 +74,19 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
 }
 
 void OnnxRuntimeEmbedding::unload_model() {
-    if (session) {
-        delete session;
-        session = nullptr;
+    if (session_) {
+        delete session_;
+        session_ = nullptr;
         std::cout << "Model unloaded." << std::endl;
     }
 }
 
 std::vector<float> OnnxRuntimeEmbedding::embed(const std::string& text) {
-    if (!tokenizer) {
+    if (!tokenizer_) {
         throw std::runtime_error("Tokenizer not initialized. Call load_tokenizer_from_json first.");
     }
 
-    std::vector<int32_t> ids = tokenizer->Encode(text);
+    std::vector<int32_t> ids = tokenizer_->Encode(text);
     std::vector<int64_t> input_ids(ids.begin(), ids.end());
     std::vector<int64_t> attention_mask(input_ids.size(), 1); // 简单填充全1
 
@@ -100,7 +106,7 @@ std::vector<float> OnnxRuntimeEmbedding::embed(const std::string& text) {
 
     std::vector<const char*> output_names = {"sentence_embedding"};
 
-    auto output_tensors = session->Run(Ort::RunOptions{nullptr},
+    auto output_tensors = session_->Run(Ort::RunOptions{nullptr},
                                        input_names.data(),
                                        input_tensors.data(),
                                        input_tensors.size(),
@@ -133,8 +139,10 @@ void OnnxRuntimeEmbedding::load_tokenizer_from_json(const std::string& json_path
 
     std::string json_blob((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-    tokenizer = tokenizers::Tokenizer::FromBlobJSON(json_blob);
-    if (!tokenizer) {
+    tokenizer_ = tokenizers::Tokenizer::FromBlobJSON(json_blob);
+    if (!tokenizer_) {
         throw std::runtime_error("Failed to initialize tokenizer from: " + json_path);
     }
 }
+
+} // namespace text_embedding

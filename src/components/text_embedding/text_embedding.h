@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 
+namespace text_embedding {
+
 class TextEmbedding {
 public:
     virtual ~TextEmbedding() = default;
@@ -16,3 +18,5 @@ public:
     // 文本向量化
     virtual std::vector<float> embed(const std::string& text) = 0;
 };
+
+} // namespace text_embedding

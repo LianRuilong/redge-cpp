@@ -16,7 +16,7 @@ fi
 
 # Set up directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="$(realpath "${SCRIPT_DIR}/build")"
+BUILD_DIR="$(realpath "${SCRIPT_DIR}/out")"
 INSTALL_DIR="${BUILD_DIR}/install"
 
 echo "[INFO] Cleaning previous build directory: $BUILD_DIR"

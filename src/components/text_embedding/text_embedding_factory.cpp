@@ -4,6 +4,8 @@
 // #include "mnn_embedding.h"
 // #include "tensor_rt_embedding.h"
 
+namespace text_embedding {
+
 std::unique_ptr<TextEmbedding> EmbeddingFactory::create(InferenceBackend backend) {
     switch (backend) {
         case InferenceBackend::ONNXRUNTIME:
@@ -19,3 +21,5 @@ std::unique_ptr<TextEmbedding> EmbeddingFactory::create(InferenceBackend backend
     }
     return nullptr;
 }
+
+} // namespace text_embedding

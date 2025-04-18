@@ -32,6 +32,7 @@ out/
 target/
 resource/
 model/
+temp_testing_result/
 *.class
 *.o
 *.a
