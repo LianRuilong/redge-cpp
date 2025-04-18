@@ -10,6 +10,6 @@
 [submodule "third_party/sqlite"]
 	path = third_party/sqlite
 	url = https://github.com/sqlite/sqlite.git
-[submodule "third_party/tokenizers"]
-	path = third_party/tokenizers
-	url = https://github.com/huggingface/tokenizers.git
+[submodule "third_party/tokenizers-cpp"]
+	path = third_party/tokenizers-cpp
+	url = https://github.com/mlc-ai/tokenizers-cpp.git

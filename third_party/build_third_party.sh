@@ -88,29 +88,35 @@ if [ ! -d "$CPPJIEBA_INSTALL_SUBDIR" ]; then
 fi
 
 # =====================================
-# Build HuggingFace Tokenizers (C++)
+# Build tokenizers-cpp
 # =====================================
-TOKENIZERS_INSTALL_SUBDIR="$INSTALL_DIR/tokenizers"
-if [ ! -d "$TOKENIZERS_INSTALL_SUBDIR" ]; then
-    echo "[INFO] Building HuggingFace tokenizers C++ binding..."
+TOKENIZERS_CPP_INSTALL_SUBDIR="$INSTALL_DIR/tokenizers-cpp"
+if [ ! -d "$TOKENIZERS_CPP_INSTALL_SUBDIR" ]; then
+    echo "[INFO] Building tokenizers-cpp..."
 
-    # Check if cargo (Rust) is installed
+    # Ensure Rust is available
     if ! command -v cargo >/dev/null 2>&1; then
-        echo "[ERROR] Rust 'cargo' is required to build tokenizers but was not found in PATH."
+        echo "[ERROR] Rust 'cargo' is required to build tokenizers-cpp but was not found."
         echo "Please install Rust from https://rustup.rs/"
         exit 1
     fi
 
-    TOKENIZERS_SRC_DIR="$(dirname "$0")/tokenizers"
-    pushd "$TOKENIZERS_SRC_DIR/bindings/cpp"
+    TOKENIZERS_CPP_SRC_DIR="$(dirname "$0")/tokenizers-cpp"
 
+    if [ ! -d "$TOKENIZERS_CPP_SRC_DIR" ]; then
+        echo "[ERROR] tokenizers-cpp source not found at $TOKENIZERS_CPP_SRC_DIR"
+        echo "Please clone with: git clone --recursive https://github.com/mlc-ai/tokenizers-cpp.git"
+        exit 1
+    fi
+
+    pushd "$TOKENIZERS_CPP_SRC_DIR"
     mkdir -p build && cd build
-    cmake .. -DCMAKE_INSTALL_PREFIX="$TOKENIZERS_INSTALL_SUBDIR"
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TOKENIZERS_CPP_INSTALL_SUBDIR"
     cmake --build . --config Release -j$(nproc)
     make install
-
     popd
-    echo "[INFO] Tokenizers installed to $TOKENIZERS_INSTALL_SUBDIR"
+
+    echo "[INFO] tokenizers-cpp installed to $TOKENIZERS_CPP_INSTALL_SUBDIR"
 fi
 
 # =====================================
@@ -121,7 +127,7 @@ echo "[INFO] Merging all headers and libraries to ${INSTALL_DIR}/include and lib
 mkdir -p "$INSTALL_DIR/include"
 mkdir -p "$INSTALL_DIR/lib"
 
-for SUB in llama.cpp onnxruntime sqlite cppjieba; do
+for SUB in llama.cpp onnxruntime sqlite cppjieba tokenizers-cpp; do
     SUB_DIR="$INSTALL_DIR/$SUB"
     echo "[INFO] === Merging for $SUB ==="
 
