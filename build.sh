@@ -20,7 +20,7 @@ BUILD_DIR="$(realpath "${SCRIPT_DIR}/build")"
 INSTALL_DIR="${BUILD_DIR}/install"
 
 echo "[INFO] Cleaning previous build directory: $BUILD_DIR"
-rm -rf "$BUILD_DIR"
+# rm -rf "$BUILD_DIR"
 
 echo "[INFO] Configuring project with CMake..."
 cmake -B "$BUILD_DIR" -S "$SCRIPT_DIR" -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"

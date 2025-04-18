@@ -10,7 +10,6 @@ message(STATUS "THIRD_PARTY_INSTALL_DIR: ${THIRD_PARTY_INSTALL_DIR}")
 
 # 头文件路径
 include_directories(
-    ${THIRD_PARTY_INSTALL_DIR}/onnxruntime/include
     ${CMAKE_SOURCE_DIR}/src/components/text_embedding
 )
 

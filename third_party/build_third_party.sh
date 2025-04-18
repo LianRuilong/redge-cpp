@@ -110,13 +110,40 @@ if [ ! -d "$TOKENIZERS_CPP_INSTALL_SUBDIR" ]; then
     fi
 
     pushd "$TOKENIZERS_CPP_SRC_DIR"
+    git submodule update --init --recursive
+
     mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TOKENIZERS_CPP_INSTALL_SUBDIR"
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$TOKENIZERS_CPP_INSTALL_SUBDIR" -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build . --config Release -j$(nproc)
-    make install
+    make install || echo "[WARN] make install did not install lib or headers. Applying workaround..."
+
+    # Ensure target directories exist
+    mkdir -p "$TOKENIZERS_CPP_INSTALL_SUBDIR/lib"
+    mkdir -p "$TOKENIZERS_CPP_INSTALL_SUBDIR/include"
+
+    # Copy .a static library files
+    LIB_FILES=("$TOKENIZERS_CPP_SRC_DIR/build/"*.a)
+    if [ -e "${LIB_FILES[0]}" ]; then
+        cp "${LIB_FILES[@]}" "$TOKENIZERS_CPP_INSTALL_SUBDIR/lib/"
+        echo "[INFO] Copied static libraries: ${LIB_FILES[*]}"
+    else
+        echo "[ERROR] No .a static libraries found in build/"
+        exit 1
+    fi
+
+    # Copy header files
+    HEADER_FILES=("$TOKENIZERS_CPP_SRC_DIR/include/"*.h)
+    if [ -e "${HEADER_FILES[0]}" ]; then
+        cp "${HEADER_FILES[@]}" "$TOKENIZERS_CPP_INSTALL_SUBDIR/include/"
+        echo "[INFO] Copied header files: ${HEADER_FILES[*]}"
+    else
+        echo "[ERROR] No header files found in include/"
+        exit 1
+    fi
+
     popd
 
-    echo "[INFO] tokenizers-cpp installed to $TOKENIZERS_CPP_INSTALL_SUBDIR"
+    echo "[INFO] tokenizers-cpp successfully installed to $TOKENIZERS_CPP_INSTALL_SUBDIR"
 fi
 
 # =====================================

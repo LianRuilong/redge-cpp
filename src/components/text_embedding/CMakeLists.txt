@@ -19,11 +19,14 @@ target_include_directories(text_embedding
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<BUILD_INTERFACE:${THIRD_PARTY_INSTALL_DIR}/onnxruntime/include>
-        $<INSTALL_INTERFACE:include>  # 安装后会用这个路径
+        $<BUILD_INTERFACE:${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/include>
+        $<INSTALL_INTERFACE:include>
 )
 
-# 链接 ONNXRuntime 库
+# 链接依赖库
 target_link_libraries(text_embedding
+    ${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/lib/libtokenizers_c.a
+    ${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/lib/libtokenizers_cpp.a
     ${THIRD_PARTY_INSTALL_DIR}/onnxruntime/lib/libonnxruntime.so
 )
 
