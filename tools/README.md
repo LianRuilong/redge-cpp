@@ -27,8 +27,13 @@ pip install -U sentence-transformers transformers onnxruntime
 ### 模型转换
 
 ```
-python3 tools/export_bge_to_onnx.py --input_dir {source_path} --output_dir {target_path}
+python3 export_bge_to_onnx.py \
+    --model_dir /home/lianrl/Work/baai/bge-small-zh-v1.5 \
+    --output_path /home/lianrl/Work/baai/bge-small-zh-v1.5/onnx \
+    --opset 14
 ```
 
+```
 optimum-cli export onnx   --model ~/Work/baai/multilingual-e5-small   ./build/multilingual-e5-small-onnx/   --task default
+```
 

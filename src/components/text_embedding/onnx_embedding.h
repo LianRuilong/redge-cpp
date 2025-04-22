@@ -3,6 +3,7 @@
 #include "text_embedding.h"
 
 #include <memory>
+#include <optional>
 
 #include <onnxruntime/onnxruntime_cxx_api.h>
 #include <tokenizers_cpp.h>
@@ -22,6 +23,8 @@ private:
     Ort::Env env_;
     Ort::Session* session_;
     std::unique_ptr<tokenizers::Tokenizer> tokenizer_;
+    std::optional<int32_t> bos_token_id_;
+    std::optional<int32_t> eos_token_id_;
 
     void load_tokenizer_from_json(const std::string& json_path);
 };

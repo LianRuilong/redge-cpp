@@ -28,6 +28,22 @@ if [ ! -d "$LLAMA_INSTALL_SUBDIR" ]; then
 fi
 
 # =====================================
+# Build GoogleTest
+# =====================================
+GTEST_INSTALL_SUBDIR="$INSTALL_DIR/googletest"
+if [ ! -d "$GTEST_INSTALL_SUBDIR" ]; then
+    echo "[INFO] Building GoogleTest..."
+    GTEST_SRC_DIR="$(dirname "$0")/googletest"
+    pushd "$GTEST_SRC_DIR"
+    mkdir -p build && cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX="$GTEST_INSTALL_SUBDIR"
+    cmake --build . --config Release -j$(nproc)
+    make install
+    popd
+    echo "[INFO] GoogleTest installed to $GTEST_INSTALL_SUBDIR"
+fi
+
+# =====================================
 # Build ONNX Runtime
 # =====================================
 ONNX_INSTALL_SUBDIR="$INSTALL_DIR/onnxruntime"
@@ -154,7 +170,7 @@ echo "[INFO] Merging all headers and libraries to ${INSTALL_DIR}/include and lib
 mkdir -p "$INSTALL_DIR/include"
 mkdir -p "$INSTALL_DIR/lib"
 
-for SUB in llama.cpp onnxruntime sqlite cppjieba tokenizers-cpp; do
+for SUB in llama.cpp googletest onnxruntime sqlite cppjieba tokenizers-cpp; do
     SUB_DIR="$INSTALL_DIR/$SUB"
     echo "[INFO] === Merging for $SUB ==="
 
