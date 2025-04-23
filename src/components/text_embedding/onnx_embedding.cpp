@@ -35,13 +35,18 @@ void print_model_io_info(Ort::Session& session) {
     }
 }
 
+template <typename T>
+std::string to_optional_str(const std::optional<T>& opt) {
+    return opt ? std::to_string(*opt) : "n/a";
+}
+
 } // namespace
 
 namespace text_embedding {
 
-OnnxRuntimeEmbedding::OnnxRuntimeEmbedding() : env_(ORT_LOGGING_LEVEL_WARNING, "TextEmbedding") {
-    session_ = nullptr;
-}
+OnnxRuntimeEmbedding::OnnxRuntimeEmbedding()
+    : env_(ORT_LOGGING_LEVEL_WARNING, "TextEmbedding"),
+      session_(nullptr) {}
 
 OnnxRuntimeEmbedding::~OnnxRuntimeEmbedding() {
     unload_model();
@@ -58,10 +63,10 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
             throw std::runtime_error("Tokenizer or model file path is empty");
         }
         
-        load_tokenizer_from_json(tokenizer_file);
+        init_tokenizer(tokenizer_file);
 
         Ort::SessionOptions session_options;
-        session_ = new Ort::Session(env_, model_file.c_str(), session_options);
+        session_ = std::make_unique<Ort::Session>(env_, model_file.c_str(), session_options);
         std::cout << "Model loaded successfully: " << model_file << std::endl;
 
         // print_model_io_info(*session_);
@@ -74,86 +79,39 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
 }
 
 void OnnxRuntimeEmbedding::unload_model() {
-    if (session_) {
-        delete session_;
-        session_ = nullptr;
-        std::cout << "Model unloaded." << std::endl;
-    }
+    std::shared_lock lock(tokenizer_mutex_);
+    session_.reset();
+    tokenizer_.reset();
 }
 
 std::vector<float> OnnxRuntimeEmbedding::embed(const std::string& text) {
+    std::shared_lock lock(tokenizer_mutex_);
+
     if (!tokenizer_) {
         throw std::runtime_error("Tokenizer not initialized. Call load_tokenizer_from_json first.");
     }
 
-    std::vector<int32_t> ids = tokenizer_->Encode(text);
-    if (ids.empty()) {
-        throw std::runtime_error("Tokenizer returned empty ids for text: " + text);
+    auto input_ids = build_input_ids(text);
+    auto attention_mask = std::vector<int64_t>(input_ids.size(), 1);
+    auto input_tensors = prepare_input_tensors(input_ids, attention_mask);
+
+    auto output_names_vec = session_->GetOutputNames();
+    if (output_names_vec.empty()) {
+        throw std::runtime_error("Model has no outputs.");
     }
 
-    // 加上 special tokens
-    if (bos_token_id_.has_value()) {
-        ids.insert(ids.begin(), bos_token_id_.value());
-    }
-    if (eos_token_id_.has_value()) {
-        ids.push_back(eos_token_id_.value());
-    }
+    std::string selected_output = select_output_name(output_names_vec);
 
-    std::vector<int64_t> input_ids(ids.begin(), ids.end());
-    std::vector<int64_t> attention_mask(input_ids.size(), 1); // 简单填充全1
-
-    // ===== 打印日志 =====
-    std::cout << "[Debug] CPP input_ids: [";
-    for (size_t i = 0; i < input_ids.size(); ++i) {
-        std::cout << input_ids[i];
-        if (i + 1 != input_ids.size()) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-
-    std::cout << "[Debug] CPP attention_mask: [";
-    for (size_t i = 0; i < attention_mask.size(); ++i) {
-        std::cout << attention_mask[i];
-        if (i + 1 != attention_mask.size()) std::cout << ", ";
-    }
-    std::cout << "]" << std::endl;
-    // ===================
-
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
-    std::vector<int64_t> input_shape = {1, static_cast<int64_t>(input_ids.size())};
-    Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(
-        memory_info, input_ids.data(), input_ids.size(), input_shape.data(), input_shape.size());
-
-    Ort::Value mask_tensor = Ort::Value::CreateTensor<int64_t>(
-        memory_info, attention_mask.data(), attention_mask.size(), input_shape.data(), input_shape.size());
-
-    std::vector<const char*> input_names = {"input_ids", "attention_mask"};
-    std::vector<Ort::Value> input_tensors;
-    input_tensors.emplace_back(std::move(input_tensor));
-    input_tensors.emplace_back(std::move(mask_tensor));
-
-    std::vector<const char*> output_names = {"sentence_embedding"};
-
-    auto output_tensors = session_->Run(Ort::RunOptions{nullptr},
-                                       input_names.data(),
-                                       input_tensors.data(),
-                                       input_tensors.size(),
-                                       output_names.data(),
-                                       1);
-
-    float* float_array = output_tensors[0].GetTensorMutableData<float>();
-    auto shape_info = output_tensors[0].GetTensorTypeAndShapeInfo();
-    std::vector<int64_t> output_shape = shape_info.GetShape();
-
-    size_t output_size = 1;
-    for (auto dim : output_shape) {
-        output_size *= dim;
+    if (!selected_output.empty() && selected_output != "last_hidden_state") {
+        std::cout << "[Debug] Using output name: " << selected_output << std::endl;
+        return extract_tensor_data(run_model({selected_output.c_str()}, input_tensors), selected_output);
     }
 
-    return std::vector<float>(float_array, float_array + output_size);
+    std::cout << "[Debug] Falling back to mean pooling over 'last_hidden_state'\n";
+    return mean_pooling(run_model({"last_hidden_state"}, input_tensors), attention_mask);
 }
 
-void OnnxRuntimeEmbedding::load_tokenizer_from_json(const std::string& json_path) {
+void OnnxRuntimeEmbedding::init_tokenizer(const std::string& json_path) {
     namespace fs = std::filesystem;
 
     if (!fs::exists(json_path)) {
@@ -167,23 +125,136 @@ void OnnxRuntimeEmbedding::load_tokenizer_from_json(const std::string& json_path
 
     std::string json_blob((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
+    std::shared_lock lock(tokenizer_mutex_);
+
     tokenizer_ = tokenizers::Tokenizer::FromBlobJSON(json_blob);
     if (!tokenizer_) {
         throw std::runtime_error("Failed to initialize tokenizer from: " + json_path);
     }
 
-    // 修复：tokenizer_->TokenToId 返回 int，-1 表示找不到
-    int bos_id = tokenizer_->TokenToId("<s>");
-    if (bos_id != -1) {
-        bos_token_id_ = bos_id;
+    // 获取常见的特殊 token（尝试多种形式）
+    std::vector<std::string> bos_candidates = {"[CLS]", "<s>"};
+    std::vector<std::string> eos_candidates = {"[SEP]", "</s>"};
+
+    for (const auto& token : bos_candidates) {
+        int id = tokenizer_->TokenToId(token);
+        if (id != -1) {
+            bos_token_id_ = id;
+            break;
+        }
     }
 
-    int eos_id = tokenizer_->TokenToId("</s>");
-    if (eos_id != -1) {
-        eos_token_id_ = eos_id;
+    for (const auto& token : eos_candidates) {
+        int id = tokenizer_->TokenToId(token);
+        if (id != -1) {
+            eos_token_id_ = id;
+            break;
+        }
     }
 
-    std::cout << "[Tokenizer] BOS ID: " << bos_id << ", EOS ID: " << eos_id << std::endl;
+    std::cout << "[Tokenizer] BOS ID: " << to_optional_str(bos_token_id_)
+          << ", EOS ID: " << to_optional_str(eos_token_id_) << std::endl;
+}
+
+std::vector<int64_t> OnnxRuntimeEmbedding::build_input_ids(const std::string& text) {
+    std::shared_lock lock(tokenizer_mutex_);
+
+    std::vector<int32_t> ids = tokenizer_->Encode(text);
+    if (ids.empty()) {
+        throw std::runtime_error("Tokenizer returned empty ids for text: " + text);
+    }
+
+    if (bos_token_id_) ids.insert(ids.begin(), bos_token_id_.value());
+    if (eos_token_id_) ids.push_back(eos_token_id_.value());
+    
+    return std::vector<int64_t>(ids.begin(), ids.end());
+}
+
+std::vector<Ort::Value> OnnxRuntimeEmbedding::prepare_input_tensors(const std::vector<int64_t>& input_ids,
+                                                                     const std::vector<int64_t>& attention_mask) {
+    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    std::vector<int64_t> input_shape = {1, static_cast<int64_t>(input_ids.size())};
+
+    Ort::Value input_tensor = Ort::Value::CreateTensor<int64_t>(
+        memory_info, const_cast<int64_t*>(input_ids.data()), input_ids.size(), input_shape.data(), input_shape.size());
+    Ort::Value mask_tensor = Ort::Value::CreateTensor<int64_t>(
+        memory_info, const_cast<int64_t*>(attention_mask.data()), attention_mask.size(), input_shape.data(), input_shape.size());
+
+    std::vector<Ort::Value> input_tensors;
+    input_tensors.push_back(std::move(input_tensor));
+    input_tensors.push_back(std::move(mask_tensor));
+    return input_tensors;
+}
+
+std::string OnnxRuntimeEmbedding::select_output_name(const std::vector<std::string>& output_names) {
+    for (const auto& name : output_names) {
+        if (name.find("sentence") != std::string::npos || name.find("embedding") != std::string::npos) {
+            return name;
+        }
+    }
+    for (const auto& name : output_names) {
+        if (name != "last_hidden_state") {
+            return name;
+        }
+    }
+    return "";
+}
+
+std::vector<Ort::Value> OnnxRuntimeEmbedding::run_model(const std::vector<const char*>& output_names,
+                                                         const std::vector<Ort::Value>& input_tensors) {
+    std::vector<const char*> input_names = {"input_ids", "attention_mask"};
+    return session_->Run(Ort::RunOptions{nullptr},
+                         input_names.data(), input_tensors.data(), input_tensors.size(),
+                         output_names.data(), output_names.size());
+}
+
+std::vector<float> OnnxRuntimeEmbedding::extract_tensor_data(const std::vector<Ort::Value>& output_tensors,
+                                                              const std::string& output_name) {
+    auto& tensor = output_tensors[0];
+    const float* float_array = tensor.GetTensorData<float>();
+    auto shape_info = tensor.GetTensorTypeAndShapeInfo();
+    auto shape = shape_info.GetShape();
+
+    size_t output_size = 1;
+    for (auto dim : shape) output_size *= dim;
+    std::vector<float> result(float_array, float_array + output_size);
+
+    std::cout << "[Debug] Embedding shape: [";
+    for (size_t i = 0; i < shape.size(); ++i)
+        std::cout << shape[i] << (i + 1 != shape.size() ? ", " : "");
+    std::cout << "]\n";
+
+    return result;
+}
+
+std::vector<float> OnnxRuntimeEmbedding::mean_pooling(const std::vector<Ort::Value>& output_tensors,
+                                                       const std::vector<int64_t>& attention_mask) {
+    const float* float_array = output_tensors[0].GetTensorData<float>();
+    auto shape_info = output_tensors[0].GetTensorTypeAndShapeInfo();
+    std::vector<int64_t> shape = shape_info.GetShape();  // [1, seq_len, hidden]
+
+    if (shape.size() != 3) {
+        throw std::runtime_error("Unexpected output shape for last_hidden_state.");
+    }
+
+    int64_t seq_len = shape[1];
+    int64_t hidden_size = shape[2];
+
+    std::vector<float> pooled(hidden_size, 0.0f);
+    int valid_count = 0;
+    for (int64_t i = 0; i < seq_len; ++i) {
+        if (attention_mask[i] == 0) continue;
+        ++valid_count;
+        for (int64_t j = 0; j < hidden_size; ++j) {
+            pooled[j] += float_array[i * hidden_size + j];
+        }
+    }
+
+    if (valid_count == 0) valid_count = 1;
+    for (float& val : pooled) val /= valid_count;
+
+    std::cout << "[Debug] Embedding shape: [" << hidden_size << "]\n";
+    return pooled;
 }
 
 } // namespace text_embedding

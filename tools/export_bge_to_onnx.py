@@ -1,47 +1,43 @@
-import argparse
-import os
 import torch
 from transformers import AutoTokenizer, AutoModel
+import argparse
+import os
 
-def export_onnx(model_dir, output_path, opset=14):
-    print(f"[Info] Loading model from: {model_dir}")
-    tokenizer = AutoTokenizer.from_pretrained(model_dir)
-    model = AutoModel.from_pretrained(model_dir, trust_remote_code=True)
+def export_onnx(model_path, output_path):
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
     model.eval()
 
-    # 保存 tokenizer.json（用于 C++ 侧加载）
-    tokenizer_path = os.path.join(output_path, "tokenizer.json")
-    tokenizer.backend_tokenizer.save(tokenizer_path)
-    print(f"[Success] Saved tokenizer.json to: {tokenizer_path}")
+    text = "示例文本"
+    inputs = tokenizer(text, return_tensors="pt")
 
-    # 准备 dummy 输入
-    dummy_input = tokenizer("测试文本", return_tensors="pt", padding="max_length", max_length=16, truncation=True)
-    input_ids = dummy_input["input_ids"]
-    attention_mask = dummy_input["attention_mask"]
+    input_names = ["input_ids", "attention_mask"]
+    output_names = ["last_hidden_state"]
 
-    onnx_path = os.path.join(output_path, "model.onnx")
-    print(f"[Info] Exporting ONNX to: {onnx_path}")
-    torch.onnx.export(
-        model,
-        (input_ids, attention_mask),
-        onnx_path,
-        input_names=["input_ids", "attention_mask"],
-        output_names=["last_hidden_state", "pooler_output"],
-        dynamic_axes={
-            "input_ids": {0: "batch_size", 1: "seq_len"},
-            "attention_mask": {0: "batch_size", 1: "seq_len"},
-        },
-        do_constant_folding=True,
-        opset_version=opset,
-    )
-    print(f"[Success] ONNX model exported to: {onnx_path}")
+    output_dir = os.path.dirname(output_path) or "."
+    os.makedirs(output_dir, exist_ok=True)
+
+    with torch.no_grad():
+        torch.onnx.export(
+            model,
+            (inputs["input_ids"], inputs["attention_mask"]),
+            output_path,
+            input_names=input_names,
+            output_names=output_names,
+            dynamic_axes={
+                "input_ids": {0: "batch_size", 1: "seq_len"},
+                "attention_mask": {0: "batch_size", 1: "seq_len"},
+                "last_hidden_state": {0: "batch_size", 1: "seq_len"},
+            },
+            opset_version=14,
+        )
+    print(f"✅ ONNX 导出成功：{output_path}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export baai/bge-small-zh-v1.5 to ONNX")
-    parser.add_argument("--model_dir", type=str, required=True, help="Path to the downloaded HuggingFace model dir")
-    parser.add_argument("--output_path", type=str, required=True, help="Path to save the exported ONNX and tokenizer")
-    parser.add_argument("--opset", type=int, default=14, help="ONNX opset version (default: 14)")
-
+    parser = argparse.ArgumentParser(description="Export BGE model to ONNX")
+    parser.add_argument("--model", required=True, help="模型路径或 HuggingFace 名称，例如 'BAAI/bge-small-zh-v1.5'")
+    parser.add_argument("--output", required=True, help="ONNX 文件输出路径")
     args = parser.parse_args()
-    os.makedirs(args.output_path, exist_ok=True)
-    export_onnx(args.model_dir, args.output_path, args.opset)
+
+    export_onnx(args.model, args.output)
+    

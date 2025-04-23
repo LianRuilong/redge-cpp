@@ -27,10 +27,15 @@ pip install -U sentence-transformers transformers onnxruntime
 ### 模型转换
 
 ```
-python3 export_bge_to_onnx.py \
-    --model_dir /home/lianrl/Work/baai/bge-small-zh-v1.5 \
-    --output_path /home/lianrl/Work/baai/bge-small-zh-v1.5/onnx \
-    --opset 14
+python3 export_bge_to_onnx.py --model BAAI/bge-small-zh-v1.5 --output ./bge-small-zh-v1.5-onnx/model.onnx
+```
+
+```
+python3 verify_onnx.py ./bge-small-zh-v1.5-onnx/
+
+or
+
+python3 verify_onnx.py ./bge-small-zh-v1.5-onnx/ --text "我爱自然语言处理"
 ```
 
 ```

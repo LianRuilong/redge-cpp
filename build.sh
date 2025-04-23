@@ -27,6 +27,6 @@ cmake -B "$BUILD_DIR" -S "$SCRIPT_DIR" -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
 
 echo "[INFO] Building and installing (parallel build)..."
 cmake --build "$BUILD_DIR" --target install -- -j$(nproc)
+echo "[INFO] Files installed to: $INSTALL_DIR"
 
 echo "[SUCCESS] Build and installation completed."
-echo "[INFO] Files installed to: $INSTALL_DIR"

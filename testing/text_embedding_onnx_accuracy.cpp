@@ -9,7 +9,6 @@
 
 #include "text_embedding_factory.h"
 
-// 读取向量
 std::vector<float> read_vector_from_file(const std::string& filename) {
     std::vector<float> vec;
     std::ifstream in(filename);
@@ -18,7 +17,6 @@ std::vector<float> read_vector_from_file(const std::string& filename) {
     return vec;
 }
 
-// 计算余弦相似度
 float cosine_similarity(const std::vector<float>& a, const std::vector<float>& b) {
     float dot = 0.0, norm_a = 0.0, norm_b = 0.0;
     for (size_t i = 0; i < a.size(); ++i) {
@@ -31,53 +29,53 @@ float cosine_similarity(const std::vector<float>& a, const std::vector<float>& b
 
 class EmbeddingBatchTest : public ::testing::TestWithParam<std::string> {};
 
-TEST_P(EmbeddingBatchTest, CompareCppAndPythonEmbedding) {
-    // 本地模型路径
-    std::string model_path = "resource/model/multilingual-e5-small/";
-    std::string text = GetParam();
-    std::string safe_text = std::to_string(std::hash<std::string>{}(text)); // safe filename
+void run_embedding_test(const std::string& model_name, const std::string& model_path, const std::string& text) {
+    std::string safe_text = std::to_string(std::hash<std::string>{}(text));
+    std::string cpp_out = "out/temp/embedding_cpp_" + model_name + "_" + safe_text + ".txt";
+    std::string py_out  = "out/temp/embedding_py_"  + model_name + "_" + safe_text + ".txt";
 
-    std::string cpp_out = "out/temp/embedding_cpp_" + safe_text + ".txt";
-    std::string py_out  = "out/temp/embedding_py_" + safe_text + ".txt";
+    std::cout << "\n=== [" << model_name << "] Testing on text: \"" << text << "\" ===" << std::endl;
 
     auto onnx_start_time = std::chrono::high_resolution_clock::now();
 
     auto embedding = text_embedding::EmbeddingFactory::create(text_embedding::InferenceBackend::ONNXRUNTIME);
-
     ASSERT_TRUE(embedding);
     ASSERT_TRUE(embedding->load_model(model_path));
 
     auto embed_start_time = std::chrono::high_resolution_clock::now();
-
     std::vector<float> vec = embedding->embed(text);
-
     auto embed_end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> embed_elapsed = embed_end_time - embed_start_time;
-    std::cout << "[Profiling] embed elapsed : " << embed_elapsed.count() << " ms" << std::endl;
 
     embedding->unload_model();
 
-    auto onnx_end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> onnx_elapsed = onnx_end_time - onnx_start_time;
-    std::cout << "[Profiling] onnx elapsed : " << onnx_elapsed.count() << " ms" << std::endl;
+    std::chrono::duration<double, std::milli> embed_elapsed = embed_end_time - embed_start_time;
+    std::chrono::duration<double, std::milli> onnx_elapsed = embed_end_time - onnx_start_time;
+    std::cout << "[Profiling] embed elapsed : " << embed_elapsed.count() << " ms" << std::endl;
+    std::cout << "[Profiling] onnx elapsed  : " << onnx_elapsed.count() << " ms" << std::endl;
 
-    // 保存 C++ 向量
     std::ofstream out(cpp_out);
     for (float v : vec) out << v << "\n";
     out.close();
 
-    // Python 脚本调用
     std::string cmd = "python3 testing/scripts/test_onnx_embedding.py \"" + model_path + "\" \"" + text + "\" \"" + py_out + "\"";
     int ret = std::system(cmd.c_str());
     ASSERT_EQ(ret, 0) << "Python script failed!";
 
     std::vector<float> vec_py = read_vector_from_file(py_out);
-    ASSERT_EQ(vec.size(), vec_py.size()) << "Vector sizes mismatch for input: " << text;
+    ASSERT_EQ(vec.size(), vec_py.size()) << "Vector size mismatch!";
 
     float sim = cosine_similarity(vec, vec_py);
-    std::cout << "[Sample] \"" << text << "\" => Cosine similarity: " << sim << std::endl;
+    std::cout << "[Cosine Similarity] " << sim << std::endl;
 
-    EXPECT_NEAR(sim, 1.0, 0.01) << "Mismatch for input: " << text;
+    EXPECT_NEAR(sim, 1.0, 0.01) << "Cosine similarity too low!";
+}
+
+TEST_P(EmbeddingBatchTest, CompareE5AndBGE) {
+    std::string text = GetParam();
+
+    // 分别测试 e5 模型和 bge 模型
+    run_embedding_test("e5",  "resource/model/multilingual-e5-small/", text);
+    run_embedding_test("bge", "resource/model/bge-small-zh-v1.5/", text);
 }
 
 INSTANTIATE_TEST_SUITE_P(
