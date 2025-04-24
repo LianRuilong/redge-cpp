@@ -80,19 +80,19 @@ void run_text_embedding_benchmark() {
     const int repeat_per_thread = 100;
 
     {
-        const std::string bge_model_path = "resource/model/bge-small-zh-v1.5/";
-        auto bge_embedding = text_embedding::EmbeddingFactory::create(text_embedding::InferenceBackend::ONNXRUNTIME);
-        ASSERT_TRUE(bge_embedding->load_model(bge_model_path)) << "Failed to load BGE model.";
-        run_qps_test("bge", bge_embedding.get(), test_text, thread_count, repeat_per_thread);
-        bge_embedding->unload_model();
-    }
-
-    {
         const std::string e5_model_path = "resource/model/multilingual-e5-small/";
         auto e5_embedding = text_embedding::EmbeddingFactory::create(text_embedding::InferenceBackend::ONNXRUNTIME);
         ASSERT_TRUE(e5_embedding->load_model(e5_model_path)) << "Failed to load E5 model.";
-        run_qps_test("e5", e5_embedding.get(), test_text, thread_count, repeat_per_thread);
+        run_qps_test("multilingual-e5-small", e5_embedding.get(), test_text, thread_count, repeat_per_thread);
         e5_embedding->unload_model();
+    }
+
+    {
+        const std::string bge_model_path = "resource/model/bge-small-zh-v1.5/";
+        auto bge_embedding = text_embedding::EmbeddingFactory::create(text_embedding::InferenceBackend::ONNXRUNTIME);
+        ASSERT_TRUE(bge_embedding->load_model(bge_model_path)) << "Failed to load BGE model.";
+        run_qps_test("bge-small-zh-v1.5", bge_embedding.get(), test_text, thread_count, repeat_per_thread);
+        bge_embedding->unload_model();
     }
 }
 

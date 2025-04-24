@@ -21,7 +21,6 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple onnxruntime
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple tiktoken
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple sentencepiece
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple accelerate
-pip install -U sentence-transformers transformers onnxruntime
 ```
 
 ### 模型转换
@@ -39,6 +38,7 @@ python3 verify_onnx.py ./bge-small-zh-v1.5-onnx/ --text "我爱自然语言处�
 ```
 
 ```
-optimum-cli export onnx   --model ~/Work/baai/multilingual-e5-small   ./build/multilingual-e5-small-onnx/   --task default
+optimum-cli export onnx   --model ~/Work/baai/multilingual-e5-small   ./multilingual-e5-small-onnx/   --task default
+optimum-cli export onnx   --model intfloat/multilingual-e5-small   ./multilingual-e5-small-onnx/   --task default
 ```
 

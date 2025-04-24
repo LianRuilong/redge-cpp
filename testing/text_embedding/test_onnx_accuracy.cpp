@@ -89,8 +89,8 @@ void run_embedding_test(const std::string& model_name, const std::string& model_
 TEST_P(EmbeddingBatchTest, CompareE5AndBGE) {
     std::string text = GetParam();
 
-    run_embedding_test("e5",  "resource/model/multilingual-e5-small/", text);
-    run_embedding_test("bge", "resource/model/bge-small-zh-v1.5/", text);
+    run_embedding_test("multilingual-e5-small",  "resource/model/multilingual-e5-small/", text);
+    run_embedding_test("bge-small-zh-v1.5", "resource/model/bge-small-zh-v1.5/", text);
 }
 
 INSTANTIATE_TEST_SUITE_P(

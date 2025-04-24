@@ -18,6 +18,7 @@ output_path = sys.argv[3]
 
 # ========== 加载分词器 ==========
 tokenizer = PreTrainedTokenizerFast(tokenizer_file=os.path.join(model_dir, "tokenizer.json"))
+tokenizer.model_max_length = 512
 
 # 设置 pad token（若未定义）
 if tokenizer.pad_token is None:

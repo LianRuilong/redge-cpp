@@ -3,21 +3,22 @@
 
 namespace logger {
 
-LogMessage::LogMessage(LogLevel level) : level_(level) {}
+LoggerStream::LoggerStream(LogLevel level, const char* file, int line)
+    : level_(level), file_(file), line_(line) {}
 
-LogMessage::~LogMessage() {
+LoggerStream::~LoggerStream() {
     switch (level_) {
         case LogLevel::INFO:
-            LOG(INFO) << stream_.str();
+            google::LogMessage(file_, line_, google::GLOG_INFO).stream() << stream_.str();
             break;
         case LogLevel::WARNING:
-            LOG(WARNING) << stream_.str();
+            google::LogMessage(file_, line_, google::GLOG_WARNING).stream() << stream_.str();
             break;
         case LogLevel::ERROR:
-            LOG(ERROR) << stream_.str();
+            google::LogMessage(file_, line_, google::GLOG_ERROR).stream() << stream_.str();
             break;
         case LogLevel::FATAL:
-            LOG(FATAL) << stream_.str();
+            google::LogMessage(file_, line_, google::GLOG_FATAL).stream() << stream_.str();
             break;
     }
 }
