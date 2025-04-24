@@ -18,6 +18,7 @@ add_library(text_embedding SHARED ${TEXT_EMBEDDING_SRC})
 target_include_directories(text_embedding
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src/base/logger
         $<BUILD_INTERFACE:${THIRD_PARTY_INSTALL_DIR}/onnxruntime/include>
         $<BUILD_INTERFACE:${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/include>
         $<INSTALL_INTERFACE:include>
@@ -25,6 +26,7 @@ target_include_directories(text_embedding
 
 # 链接依赖库
 target_link_libraries(text_embedding
+    logger
     ${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/lib/libtokenizers_c.a
     ${THIRD_PARTY_INSTALL_DIR}/tokenizers-cpp/lib/libtokenizers_cpp.a
     ${THIRD_PARTY_INSTALL_DIR}/onnxruntime/lib/libonnxruntime.so

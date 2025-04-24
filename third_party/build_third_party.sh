@@ -13,6 +13,24 @@ mkdir -p "$INSTALL_DIR"
 echo "[INFO] Installing third-party dependencies into: $INSTALL_DIR"
 
 # =====================================
+# Build glog
+# =====================================
+GLOG_INSTALL_SUBDIR="$INSTALL_DIR/glog"
+if [ ! -d "$GLOG_INSTALL_SUBDIR" ]; then
+    echo "[INFO] Building glog..."
+    GLOG_SRC_DIR="$(dirname "$0")/glog"
+    pushd "$GLOG_SRC_DIR"
+
+    mkdir -p build && cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX="$GLOG_INSTALL_SUBDIR" -DWITH_GFLAGS=ON
+    cmake --build . --config Release -j$(nproc)
+    make install
+
+    popd
+    echo "[INFO] glog installed to $GLOG_INSTALL_SUBDIR"
+fi
+
+# =====================================
 # Build llama.cpp
 # =====================================
 LLAMA_INSTALL_SUBDIR="$INSTALL_DIR/llama.cpp"
@@ -170,7 +188,7 @@ echo "[INFO] Merging all headers and libraries to ${INSTALL_DIR}/include and lib
 mkdir -p "$INSTALL_DIR/include"
 mkdir -p "$INSTALL_DIR/lib"
 
-for SUB in llama.cpp googletest onnxruntime sqlite cppjieba tokenizers-cpp; do
+for SUB in glog llama.cpp googletest onnxruntime sqlite cppjieba tokenizers-cpp; do
     SUB_DIR="$INSTALL_DIR/$SUB"
     echo "[INFO] === Merging for $SUB ==="
 

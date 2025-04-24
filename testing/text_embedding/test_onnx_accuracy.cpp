@@ -4,10 +4,16 @@
 #include <fstream>
 #include <vector>
 #include <numeric>
+#include <filesystem>
+#include <limits.h>
+#include <unistd.h>
 
 #include <gtest/gtest.h>
 
+#include "logger.h"
 #include "text_embedding_factory.h"
+
+namespace fs = std::filesystem;
 
 std::vector<float> read_vector_from_file(const std::string& filename) {
     std::vector<float> vec;
@@ -27,6 +33,15 @@ float cosine_similarity(const std::vector<float>& a, const std::vector<float>& b
     return dot / (std::sqrt(norm_a) * std::sqrt(norm_b) + 1e-8f);
 }
 
+std::string get_binary_dir() {
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    if (count != -1) {
+        return fs::path(std::string(result, count)).parent_path().string();
+    }
+    return "./";
+}
+
 class EmbeddingBatchTest : public ::testing::TestWithParam<std::string> {};
 
 void run_embedding_test(const std::string& model_name, const std::string& model_path, const std::string& text) {
@@ -34,7 +49,7 @@ void run_embedding_test(const std::string& model_name, const std::string& model_
     std::string cpp_out = "out/temp/embedding_cpp_" + model_name + "_" + safe_text + ".txt";
     std::string py_out  = "out/temp/embedding_py_"  + model_name + "_" + safe_text + ".txt";
 
-    std::cout << "\n=== [" << model_name << "] Testing on text: \"" << text << "\" ===" << std::endl;
+    LOG_INFO << "\n=== [" << model_name << "] Testing on text: \"" << text << "\" ===";
 
     auto onnx_start_time = std::chrono::high_resolution_clock::now();
 
@@ -50,14 +65,15 @@ void run_embedding_test(const std::string& model_name, const std::string& model_
 
     std::chrono::duration<double, std::milli> embed_elapsed = embed_end_time - embed_start_time;
     std::chrono::duration<double, std::milli> onnx_elapsed = embed_end_time - onnx_start_time;
-    std::cout << "[Profiling] embed elapsed : " << embed_elapsed.count() << " ms" << std::endl;
-    std::cout << "[Profiling] onnx elapsed  : " << onnx_elapsed.count() << " ms" << std::endl;
+    LOG_INFO << "[Profiling] embed elapsed : " << embed_elapsed.count() << " ms";
+    LOG_INFO << "[Profiling] onnx elapsed  : " << onnx_elapsed.count() << " ms";
 
     std::ofstream out(cpp_out);
     for (float v : vec) out << v << "\n";
     out.close();
 
-    std::string cmd = "python3 testing/scripts/test_onnx_embedding.py \"" + model_path + "\" \"" + text + "\" \"" + py_out + "\"";
+    std::string script_path = get_binary_dir() + "/scripts/test_onnx_embedding.py";
+    std::string cmd = "python3 \"" + script_path + "\" \"" + model_path + "\" \"" + text + "\" \"" + py_out + "\"";
     int ret = std::system(cmd.c_str());
     ASSERT_EQ(ret, 0) << "Python script failed!";
 
@@ -65,7 +81,7 @@ void run_embedding_test(const std::string& model_name, const std::string& model_
     ASSERT_EQ(vec.size(), vec_py.size()) << "Vector size mismatch!";
 
     float sim = cosine_similarity(vec, vec_py);
-    std::cout << "[Cosine Similarity] " << sim << std::endl;
+    LOG_INFO << "[Cosine Similarity] " << sim;
 
     EXPECT_NEAR(sim, 1.0, 0.01) << "Cosine similarity too low!";
 }
@@ -73,7 +89,6 @@ void run_embedding_test(const std::string& model_name, const std::string& model_
 TEST_P(EmbeddingBatchTest, CompareE5AndBGE) {
     std::string text = GetParam();
 
-    // 分别测试 e5 模型和 bge 模型
     run_embedding_test("e5",  "resource/model/multilingual-e5-small/", text);
     run_embedding_test("bge", "resource/model/bge-small-zh-v1.5/", text);
 }

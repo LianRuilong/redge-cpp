@@ -8,3 +8,4 @@ onnxruntime/
 sqlite/
 tokenizers-cpp/
 googletest/
+glog/

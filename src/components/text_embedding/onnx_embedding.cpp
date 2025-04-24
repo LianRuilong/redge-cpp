@@ -1,14 +1,16 @@
 #include "onnx_embedding.h"
 
 #include <iostream>
-#include <numeric>      // std::accumulate
-#include <algorithm>    // std::transform
+#include <numeric>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <stdexcept>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+#include "logger.h"
 
 namespace {
 
@@ -22,16 +24,16 @@ namespace {
 void print_model_io_info(Ort::Session& session) {
     // 打印输入名
     auto input_names = session.GetInputNames();
-    std::cout << "[Model Inputs]:" << std::endl;
+    LOG_DEBUG << "[Model Inputs]:";
     for (size_t i = 0; i < input_names.size(); ++i) {
-        std::cout << "  Input " << i << ": " << input_names[i] << std::endl;
+        LOG_DEBUG << "  Input " << i << ": " << input_names[i];
     }
 
     // 打印输出名
     auto output_names = session.GetOutputNames();
-    std::cout << "[Model Outputs]:" << std::endl;
+    LOG_DEBUG << "[Model Outputs]:";
     for (size_t i = 0; i < output_names.size(); ++i) {
-        std::cout << "  Output " << i << ": " << output_names[i] << std::endl;
+        LOG_DEBUG << "  Output " << i << ": " << output_names[i];
     }
 }
 
@@ -57,7 +59,7 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
         std::string tokenizer_file = model_path + "tokenizer.json";
         std::string model_file = model_path + "model.onnx";
 
-        std::cout << "Tokenizer file: " << tokenizer_file << ", model file: " << model_file << std::endl;
+        LOG_DEBUG << "Tokenizer file: " << tokenizer_file << ", model file: " << model_file;
 
         if (tokenizer_file.empty() || model_file.empty()) {
             throw std::runtime_error("Tokenizer or model file path is empty");
@@ -67,13 +69,13 @@ bool OnnxRuntimeEmbedding::load_model(const std::string& model_path) {
 
         Ort::SessionOptions session_options;
         session_ = std::make_unique<Ort::Session>(env_, model_file.c_str(), session_options);
-        std::cout << "Model loaded successfully: " << model_file << std::endl;
+        LOG_DEBUG << "Model loaded successfully: " << model_file;
 
         // print_model_io_info(*session_);
 
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to load model: " << e.what() << std::endl;
+        std::cerr << "Failed to load model: " << e.what();
         return false;
     }
 }
@@ -103,11 +105,11 @@ std::vector<float> OnnxRuntimeEmbedding::embed(const std::string& text) {
     std::string selected_output = select_output_name(output_names_vec);
 
     if (!selected_output.empty() && selected_output != "last_hidden_state") {
-        std::cout << "[Debug] Using output name: " << selected_output << std::endl;
+        LOG_DEBUG << "[Debug] Using output name: " << selected_output;
         return extract_tensor_data(run_model({selected_output.c_str()}, input_tensors), selected_output);
     }
 
-    std::cout << "[Debug] Falling back to mean pooling over 'last_hidden_state'\n";
+    LOG_DEBUG << "[Debug] Falling back to mean pooling over 'last_hidden_state'\n";
     return mean_pooling(run_model({"last_hidden_state"}, input_tensors), attention_mask);
 }
 
@@ -152,8 +154,8 @@ void OnnxRuntimeEmbedding::init_tokenizer(const std::string& json_path) {
         }
     }
 
-    std::cout << "[Tokenizer] BOS ID: " << to_optional_str(bos_token_id_)
-          << ", EOS ID: " << to_optional_str(eos_token_id_) << std::endl;
+    LOG_DEBUG << "[Tokenizer] BOS ID: " << to_optional_str(bos_token_id_)
+          << ", EOS ID: " << to_optional_str(eos_token_id_);
 }
 
 std::vector<int64_t> OnnxRuntimeEmbedding::build_input_ids(const std::string& text) {
@@ -219,10 +221,10 @@ std::vector<float> OnnxRuntimeEmbedding::extract_tensor_data(const std::vector<O
     for (auto dim : shape) output_size *= dim;
     std::vector<float> result(float_array, float_array + output_size);
 
-    std::cout << "[Debug] Embedding shape: [";
+    LOG_DEBUG << "[Debug] Embedding shape: [";
     for (size_t i = 0; i < shape.size(); ++i)
-        std::cout << shape[i] << (i + 1 != shape.size() ? ", " : "");
-    std::cout << "]\n";
+        LOG_DEBUG << shape[i] << (i + 1 != shape.size() ? ", " : "");
+    LOG_DEBUG << "]\n";
 
     return result;
 }
@@ -253,7 +255,7 @@ std::vector<float> OnnxRuntimeEmbedding::mean_pooling(const std::vector<Ort::Val
     if (valid_count == 0) valid_count = 1;
     for (float& val : pooled) val /= valid_count;
 
-    std::cout << "[Debug] Embedding shape: [" << hidden_size << "]\n";
+    LOG_DEBUG << "[Debug] Embedding shape: [" << hidden_size << "]\n";
     return pooled;
 }
 

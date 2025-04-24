@@ -39,6 +39,7 @@ include_directories(${THIRD_PARTY_INSTALL_DIR}/include)
 link_directories(${THIRD_PARTY_INSTALL_DIR}/lib)
 
 # 添加源码子目录
+add_subdirectory(src/base/logger)
 add_subdirectory(src/components/text_embedding)
 
 # 添加测试
