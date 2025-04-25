@@ -1,0 +1,10 @@
+-i https://pypi.tuna.tsinghua.edu.cn/simple
+
+optimum
+transformers
+onnx
+sentence_transformers
+onnxruntime
+tiktoken
+sentencepiece
+accelerate
